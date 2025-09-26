@@ -1,11 +1,13 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { apiService, DocumentTemplate, DocumentSubmission, DocumentCategory } from '../services/api';
 
+// Frontend Document interface that combines template and submission data
 export interface Document {
   id: string;
   name: string;
   type: 'pdf' | 'doc' | 'docx' | 'txt' | 'image' | 'video' | 'other';
-  category: 'handbook' | 'policy' | 'training' | 'form' | 'reference' | 'personal';
+  category: string;
   size: number; // in bytes
   uploadedAt: string;
   uploadedBy: string;
@@ -16,9 +18,12 @@ export interface Document {
   isCompleted: boolean;
   completedAt?: string;
   version: number;
+  status?: 'submitted' | 'approved' | 'rejected';
+  templateId?: number;
+  submissionId?: number;
 }
 
-export interface DocumentCategory {
+export interface FrontendDocumentCategory {
   id: string;
   name: string;
   description: string;
@@ -28,7 +33,9 @@ export interface DocumentCategory {
 
 interface DocumentsState {
   documents: Document[];
-  categories: DocumentCategory[];
+  categories: FrontendDocumentCategory[];
+  templates: DocumentTemplate[];
+  submissions: DocumentSubmission[];
   isLoading: boolean;
   uploadProgress: { [key: string]: number | undefined };
   error: string | null;
@@ -49,7 +56,7 @@ interface DocumentsActions {
   markDocumentCompleted: (id: string) => void;
   
   // File upload
-  uploadDocument: (file: File, metadata: Partial<Document>) => Promise<void>;
+  uploadDocument: (templateId: number, file: File) => Promise<void>;
   updateUploadProgress: (documentId: string, progress: number) => void;
   
   // Filtering and search
@@ -62,6 +69,9 @@ interface DocumentsActions {
   
   // Data loading
   loadDocuments: () => Promise<void>;
+  loadTemplates: () => Promise<void>;
+  loadSubmissions: () => Promise<void>;
+  loadCategories: () => Promise<void>;
   clearError: () => void;
 }
 
@@ -141,43 +151,45 @@ const initialDocuments: Document[] = [
   }
 ];
 
-const initialCategories: DocumentCategory[] = [
-  {
-    id: 'handbook',
-    name: 'Employee Handbook',
-    description: 'Company policies and procedures',
-    requiredDocuments: 1,
-    completedDocuments: 1
-  },
-  {
-    id: 'policy',
-    name: 'Policies',
-    description: 'Company policies and guidelines',
-    requiredDocuments: 1,
-    completedDocuments: 0
-  },
-  {
-    id: 'training',
-    name: 'Training Materials',
-    description: 'Training videos and materials',
-    requiredDocuments: 1,
-    completedDocuments: 0
-  },
-  {
-    id: 'form',
-    name: 'Forms',
-    description: 'Required forms and checklists',
-    requiredDocuments: 1,
-    completedDocuments: 0
-  },
-  {
-    id: 'reference',
-    name: 'Reference',
-    description: 'Reference materials and resources',
-    requiredDocuments: 0,
-    completedDocuments: 0
-  }
-];
+// Helper function to convert backend data to frontend format
+const convertToFrontendDocument = (template: DocumentTemplate, submission?: DocumentSubmission): Document => {
+  const isCompleted = submission?.status === 'approved';
+  const isRequired = template.required_for_role === 'candidate';
+  
+  return {
+    id: submission ? submission.id.toString() : `template-${template.id}`,
+    name: template.name,
+    type: 'pdf', // Default type, could be determined from file extension
+    category: template.category_id?.toString() || 'general',
+    size: 0, // Would need to be fetched from file metadata
+    uploadedAt: submission?.created_at || new Date().toISOString(),
+    uploadedBy: 'Current User', // Would need to be fetched from user data
+    description: template.description || '',
+    tags: isRequired ? ['required'] : [],
+    isRequired,
+    isCompleted,
+    completedAt: isCompleted ? submission?.reviewed_at || undefined : undefined,
+    version: 1,
+    status: submission?.status,
+    templateId: template.id,
+    submissionId: submission?.id
+  };
+};
+
+const convertToFrontendCategory = (category: DocumentCategory, templates: DocumentTemplate[], submissions: DocumentSubmission[]): FrontendDocumentCategory => {
+  const categoryTemplates = templates.filter(t => t.category_id === category.id);
+  const categorySubmissions = submissions.filter(s => 
+    categoryTemplates.some(t => t.id === s.template_id)
+  );
+  
+  return {
+    id: category.id.toString(),
+    name: category.name,
+    description: category.description || '',
+    requiredDocuments: categoryTemplates.filter(t => t.required_for_role === 'candidate').length,
+    completedDocuments: categorySubmissions.filter(s => s.status === 'approved').length
+  };
+};
 
 export const formatFileSize = (bytes: number): string => {
   if (bytes === 0) return '0 Bytes';
@@ -191,8 +203,10 @@ export const useDocumentsStore = create<DocumentsStore>()(
   persist(
     (set, get) => ({
       // Initial state
-      documents: initialDocuments,
-      categories: initialCategories,
+      documents: [],
+      categories: [],
+      templates: [],
+      submissions: [],
       isLoading: false,
       uploadProgress: {},
       error: null,
@@ -242,7 +256,7 @@ export const useDocumentsStore = create<DocumentsStore>()(
         });
       },
 
-      uploadDocument: async (file, metadata) => {
+      uploadDocument: async (templateId, file) => {
         const documentId = Date.now().toString();
         
         set(state => ({
@@ -250,37 +264,27 @@ export const useDocumentsStore = create<DocumentsStore>()(
         }));
 
         try {
-          // Simulate file upload with progress
-          for (let progress = 0; progress <= 100; progress += 10) {
+          // Simulate upload progress
+          for (let progress = 0; progress <= 100; progress += 20) {
             await new Promise(resolve => setTimeout(resolve, 100));
             get().updateUploadProgress(documentId, progress);
           }
 
-          const newDocument: Document = {
-            id: documentId,
-            name: file.name,
-            type: file.type.includes('pdf') ? 'pdf' : 
-                  file.type.includes('doc') ? 'doc' : 
-                  file.type.includes('image') ? 'image' : 'other',
-            category: 'reference',
-            size: file.size,
-            uploadedAt: new Date().toISOString(),
-            uploadedBy: 'Current User', // Should come from auth store
-            tags: [],
-            isRequired: false,
-            isCompleted: false,
-            version: 1,
-            ...metadata
-          };
+          // Upload to backend
+          const submission = await apiService.submitDocument(templateId, file);
+          
+          // Refresh submissions and documents
+          await get().loadSubmissions();
+          await get().loadDocuments();
 
           set(state => ({
-            documents: [...state.documents, newDocument],
             uploadProgress: { ...state.uploadProgress, [documentId]: undefined }
           }));
 
-        } catch (error) {
+        } catch (error: any) {
+          const errorMessage = error.response?.data?.detail || 'Failed to upload document';
           set(state => ({
-            error: 'Failed to upload document',
+            error: errorMessage,
             uploadProgress: { ...state.uploadProgress, [documentId]: undefined }
           }));
         }
@@ -321,16 +325,56 @@ export const useDocumentsStore = create<DocumentsStore>()(
         set({ isLoading: true, error: null });
         
         try {
-          // Simulate API call
-          await new Promise(resolve => setTimeout(resolve, 500));
+          const { templates, submissions } = get();
           
-          // In a real app, you would fetch documents from an API here
-          set({ isLoading: false });
+          // Convert templates and submissions to frontend documents
+          const documents: Document[] = templates.map(template => {
+            const submission = submissions.find(s => s.template_id === template.id);
+            return convertToFrontendDocument(template, submission);
+          });
+          
+          set({ documents, isLoading: false });
         } catch (error) {
           set({
             error: 'Failed to load documents',
             isLoading: false
           });
+        }
+      },
+
+      loadTemplates: async () => {
+        try {
+          const templates = await apiService.getDocumentTemplates();
+          set({ templates });
+        } catch (error: any) {
+          const errorMessage = error.response?.data?.detail || 'Failed to load document templates';
+          set({ error: errorMessage });
+        }
+      },
+
+      loadSubmissions: async () => {
+        try {
+          const submissions = await apiService.getMyDocumentSubmissions();
+          set({ submissions });
+        } catch (error: any) {
+          const errorMessage = error.response?.data?.detail || 'Failed to load document submissions';
+          set({ error: errorMessage });
+        }
+      },
+
+      loadCategories: async () => {
+        try {
+          const backendCategories = await apiService.getDocumentCategories();
+          const { templates, submissions } = get();
+          
+          const categories = backendCategories.map(category => 
+            convertToFrontendCategory(category, templates, submissions)
+          );
+          
+          set({ categories });
+        } catch (error: any) {
+          const errorMessage = error.response?.data?.detail || 'Failed to load document categories';
+          set({ error: errorMessage });
         }
       },
 
@@ -342,7 +386,9 @@ export const useDocumentsStore = create<DocumentsStore>()(
       name: 'documents-storage',
       partialize: (state) => ({
         documents: state.documents,
-        categories: state.categories
+        categories: state.categories,
+        templates: state.templates,
+        submissions: state.submissions
       })
     }
   )

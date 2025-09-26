@@ -1,5 +1,7 @@
 import { useNavigate } from 'react-router-dom';
+import { useEffect } from 'react';
 import Navigation from '../components/Navigation';
+import { useDashboardStore, useAuthStore } from '../stores';
 import { 
   Upload,
   Play,
@@ -15,6 +17,59 @@ import {
 
 const Dashboard = () => {
   const navigate = useNavigate();
+  const { user } = useAuthStore();
+  
+  // Hardcoded mock data for UI testing
+  const candidateDashboard = {
+    stats: {
+      documents: {
+        total: 8,
+        submitted: 5,
+        approved: 3,
+        pending: 2
+      },
+      tasks: {
+        total: 12,
+        completed: 7,
+        inProgress: 3,
+        pending: 2
+      },
+      training: {
+        total: 15,
+        completed: 8,
+        inProgress: 4,
+        pending: 3
+      }
+    }
+  };
+  
+  const isLoading = false;
+  const error = null;
+
+  // Calculate overall progress with safe navigation
+  const overallProgress = candidateDashboard?.stats ? 
+    Math.round(((candidateDashboard.stats.documents?.approved || 0) + 
+                 (candidateDashboard.stats.tasks?.completed || 0) + 
+                 (candidateDashboard.stats.training?.completed || 0)) / 
+                Math.max(1, (candidateDashboard.stats.documents?.total || 0) + 
+                 (candidateDashboard.stats.tasks?.total || 0) + 
+                 (candidateDashboard.stats.training?.total || 0)) * 100) : 0;
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading dashboard...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show error state briefly, then continue with empty data
+  if (error && !candidateDashboard) {
+    console.warn('Dashboard error:', error);
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -29,7 +84,7 @@ const Dashboard = () => {
               <span className="text-2xl">👋</span>
             </div>
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">Welcome back, Candidate!</h1>
+              <h1 className="text-3xl font-bold text-gray-900">Welcome back, {user?.name || 'John Smith'}!</h1>
               <p className="text-gray-600 mt-1">Let's continue your onboarding journey</p>
             </div>
           </div>
@@ -41,34 +96,47 @@ const Dashboard = () => {
             <h2 className="text-xl font-semibold text-gray-900">Overall Progress</h2>
             <div className="flex items-center text-sm text-gray-500">
               <TrendingUp className="h-4 w-4 mr-1" />
-              <span>29% Complete</span>
+              <span>{overallProgress}% Complete</span>
             </div>
           </div>
           
           <div className="mb-4">
             <div className="flex justify-between text-sm font-medium text-gray-700 mb-2">
               <span>Onboarding Completion</span>
-              <span>29%</span>
+              <span>{overallProgress}%</span>
             </div>
             <div className="w-full bg-gray-200 rounded-full h-3">
               <div 
                 className="bg-gradient-to-r from-green-400 to-green-600 h-3 rounded-full transition-all duration-500 ease-out" 
-                style={{width: '29%'}}
+                style={{width: `${overallProgress}%`}}
               ></div>
             </div>
           </div>
 
           <div className="grid grid-cols-3 gap-4 text-center">
             <div className="p-3 bg-green-50 rounded-lg">
-              <div className="text-2xl font-bold text-green-600">3</div>
+              <div className="text-2xl font-bold text-green-600">
+                {candidateDashboard?.stats ? 
+                  (candidateDashboard.stats.documents?.approved || 0) + 
+                  (candidateDashboard.stats.tasks?.completed || 0) + 
+                  (candidateDashboard.stats.training?.completed || 0) : 0}
+              </div>
               <div className="text-sm text-green-700">Completed</div>
             </div>
             <div className="p-3 bg-blue-50 rounded-lg">
-              <div className="text-2xl font-bold text-blue-600">7</div>
+              <div className="text-2xl font-bold text-blue-600">
+                {candidateDashboard?.stats ? 
+                  ((candidateDashboard.stats.documents?.submitted || 0) - (candidateDashboard.stats.documents?.approved || 0)) +
+                  ((candidateDashboard.stats.tasks?.total || 0) - (candidateDashboard.stats.tasks?.completed || 0)) +
+                  ((candidateDashboard.stats.training?.total || 0) - (candidateDashboard.stats.training?.completed || 0)) : 0}
+              </div>
               <div className="text-sm text-blue-700">In Progress</div>
             </div>
             <div className="p-3 bg-gray-50 rounded-lg">
-              <div className="text-2xl font-bold text-gray-600">4</div>
+              <div className="text-2xl font-bold text-gray-600">
+                {candidateDashboard?.stats?.documents ? 
+                  (candidateDashboard.stats.documents.total || 0) - (candidateDashboard.stats.documents.submitted || 0) : 0}
+              </div>
               <div className="text-sm text-gray-700">Pending</div>
             </div>
           </div>
@@ -86,18 +154,25 @@ const Dashboard = () => {
                 <h3 className="font-semibold text-gray-900">Tasks</h3>
               </div>
               <div className="text-right">
-                <div className="text-2xl font-bold text-blue-600">3/3</div>
+                <div className="text-2xl font-bold text-blue-600">
+                  {candidateDashboard?.stats?.tasks ? `${candidateDashboard.stats.tasks.completed || 0}/${candidateDashboard.stats.tasks.total || 0}` : '0/0'}
+                </div>
                 <div className="text-xs text-gray-500">completed</div>
               </div>
             </div>
             
             <div className="mb-3">
               <div className="w-full bg-gray-200 rounded-full h-2 mb-2">
-                <div className="bg-blue-500 h-2 rounded-full w-full transition-all duration-500"></div>
+                <div 
+                  className="bg-blue-500 h-2 rounded-full transition-all duration-500"
+                  style={{width: candidateDashboard?.stats?.tasks && candidateDashboard.stats.tasks.total > 0 ? `${((candidateDashboard.stats.tasks.completed || 0) / candidateDashboard.stats.tasks.total) * 100}%` : '0%'}}
+                ></div>
               </div>
               <p className="text-sm text-green-600 font-medium flex items-center">
                 <Award className="h-4 w-4 mr-1" />
-                All tasks completed!
+                {candidateDashboard?.stats?.tasks && (candidateDashboard.stats.tasks.completed || 0) === (candidateDashboard.stats.tasks.total || 0) ? 
+                  'All tasks completed!' : 
+                  `${candidateDashboard?.stats?.tasks ? (candidateDashboard.stats.tasks.total || 0) - (candidateDashboard.stats.tasks.completed || 0) : 0} tasks remaining`}
               </p>
             </div>
             
@@ -119,17 +194,22 @@ const Dashboard = () => {
                 <h3 className="font-semibold text-gray-900">Documents</h3>
               </div>
               <div className="text-right">
-                <div className="text-2xl font-bold text-orange-600">4/11</div>
+                <div className="text-2xl font-bold text-orange-600">
+                  {candidateDashboard?.stats?.documents ? `${candidateDashboard.stats.documents.submitted || 0}/${candidateDashboard.stats.documents.total || 0}` : '0/0'}
+                </div>
                 <div className="text-xs text-gray-500">submitted</div>
               </div>
             </div>
             
             <div className="mb-3">
               <div className="w-full bg-gray-200 rounded-full h-2 mb-2">
-                <div className="bg-orange-500 h-2 rounded-full transition-all duration-500" style={{width: '36%'}}></div>
+                <div 
+                  className="bg-orange-500 h-2 rounded-full transition-all duration-500" 
+                  style={{width: candidateDashboard?.stats?.documents && candidateDashboard.stats.documents.total > 0 ? `${((candidateDashboard.stats.documents.submitted || 0) / candidateDashboard.stats.documents.total) * 100}%` : '0%'}}
+                ></div>
               </div>
               <p className="text-sm text-orange-600 font-medium">
-                7 documents remaining
+                {candidateDashboard?.stats?.documents ? `${(candidateDashboard.stats.documents.total || 0) - (candidateDashboard.stats.documents.submitted || 0)} documents remaining` : '0 documents remaining'}
               </p>
             </div>
             
@@ -151,17 +231,24 @@ const Dashboard = () => {
                 <h3 className="font-semibold text-gray-900">Training</h3>
               </div>
               <div className="text-right">
-                <div className="text-2xl font-bold text-purple-600">0/10</div>
+                <div className="text-2xl font-bold text-purple-600">
+                  {candidateDashboard?.stats?.training ? `${candidateDashboard.stats.training.completed || 0}/${candidateDashboard.stats.training.total || 0}` : '0/0'}
+                </div>
                 <div className="text-xs text-gray-500">completed</div>
               </div>
             </div>
             
             <div className="mb-3">
               <div className="w-full bg-gray-200 rounded-full h-2 mb-2">
-                <div className="bg-purple-500 h-2 rounded-full w-0 transition-all duration-500"></div>
+                <div 
+                  className="bg-purple-500 h-2 rounded-full transition-all duration-500"
+                  style={{width: candidateDashboard?.stats?.training && candidateDashboard.stats.training.total > 0 ? `${((candidateDashboard.stats.training.completed || 0) / candidateDashboard.stats.training.total) * 100}%` : '0%'}}
+                ></div>
               </div>
               <p className="text-sm text-gray-500 font-medium">
-                Ready to start learning
+                {candidateDashboard?.stats?.training && (candidateDashboard.stats.training.completed || 0) === 0 ? 
+                  'Ready to start learning' : 
+                  `${candidateDashboard?.stats?.training ? (candidateDashboard.stats.training.total || 0) - (candidateDashboard.stats.training.completed || 0) : 0} modules remaining`}
               </p>
             </div>
             

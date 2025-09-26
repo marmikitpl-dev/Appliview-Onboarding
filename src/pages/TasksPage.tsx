@@ -1,6 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import Navigation from "../components/Navigation";
-import { useOnboardingStore, Task } from "../stores";
 import {
   CheckCircle,
   Clock,
@@ -13,27 +12,102 @@ import {
   CheckSquare,
 } from "lucide-react";
 
-const TasksPage = () => {
-  const {
-    tasks,
-    progress,
-    // filters,
-    searchQuery,
-    updateTask,
-    completeTask,
-    // setFilters,
-    setSearchQuery,
-    clearFilters,
-  } = useOnboardingStore();
+type TaskStatus = "completed" | "in-progress" | "pending" | "blocked";
+type TaskPriority = "high" | "medium" | "low";
 
+const TasksPage = () => {
+  // Hardcoded mock data for UI testing
+  const tasks = [
+    {
+      id: 1,
+      candidateTaskId: 1,
+      title: "Complete Profile Setup",
+      description: "Fill out your personal information, contact details, and emergency contacts in your employee profile.",
+      status: "completed" as const,
+      priority: "high" as const,
+      category: "onboarding",
+      dueDate: "2024-09-15",
+      completedAt: "2024-09-10"
+    },
+    {
+      id: 2,
+      candidateTaskId: 2,
+      title: "Review Employee Handbook",
+      description: "Read through the complete employee handbook and acknowledge understanding of company policies and procedures.",
+      status: "in-progress" as const,
+      priority: "high" as const,
+      category: "documentation",
+      dueDate: "2024-09-20",
+      completedAt: null
+    },
+    {
+      id: 3,
+      candidateTaskId: 3,
+      title: "Submit Tax Documents",
+      description: "Upload your W-4 form and any other required tax documentation for payroll setup.",
+      status: "pending" as const,
+      priority: "medium" as const,
+      category: "hr",
+      dueDate: "2024-09-25",
+      completedAt: null
+    },
+    {
+      id: 4,
+      candidateTaskId: 4,
+      title: "IT Equipment Setup",
+      description: "Schedule a meeting with IT to receive your laptop, phone, and access credentials.",
+      status: "pending" as const,
+      priority: "high" as const,
+      category: "it",
+      dueDate: "2024-09-18",
+      completedAt: null
+    },
+    {
+      id: 5,
+      candidateTaskId: 5,
+      title: "Complete Security Training",
+      description: "Complete the mandatory cybersecurity awareness training and pass the assessment.",
+      status: "blocked" as const,
+      priority: "medium" as const,
+      category: "training",
+      dueDate: "2024-09-30",
+      completedAt: null
+    },
+    {
+      id: 6,
+      candidateTaskId: 6,
+      title: "Meet Your Team",
+      description: "Schedule introductory meetings with your direct team members and key stakeholders.",
+      status: "pending" as const,
+      priority: "low" as const,
+      category: "social",
+      dueDate: "2024-10-05",
+      completedAt: null
+    }
+  ];
+
+  const progress = {
+    totalTasks: 6,
+    completedTasks: 1,
+    inProgressTasks: 1,
+    overdueTasks: 0
+  };
+
+  const [searchQuery, setSearchQuery] = useState("");
   const [localFilterStatus, setLocalFilterStatus] = useState("all");
 
-  useEffect(() => {
-    setSearchQuery(searchQuery);
-  }, [searchQuery, setSearchQuery]);
+  const updateTaskStatus = (candidateTaskId: number, status: string) => {
+    console.log(`Updating task ${candidateTaskId} to status: ${status}`);
+    // Mock function for UI testing
+  };
+
+  const clearFilters = () => {
+    setSearchQuery("");
+    setLocalFilterStatus("all");
+  };
 
   // Get status badge component
-  const getStatusBadge = (status: Task["status"]) => {
+  const getStatusBadge = (status: TaskStatus) => {
     switch (status) {
       case "completed":
         return (
@@ -69,7 +143,7 @@ const TasksPage = () => {
   };
 
   // Get priority color
-  const getPriorityColor = (priority: Task["priority"]) => {
+  const getPriorityColor = (priority: TaskPriority) => {
     switch (priority) {
       case "high":
         return "border-l-red-500";
@@ -262,7 +336,7 @@ const TasksPage = () => {
                 <div className="flex flex-col sm:flex-row gap-2 lg:ml-6">
                   {task.status === "completed" ? (
                     <button
-                      onClick={() => updateTask(task.id, { status: "pending" })}
+                      onClick={() => task.candidateTaskId && updateTaskStatus(task.candidateTaskId, "pending")}
                       className="flex items-center px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition duration-200"
                     >
                       <RotateCcw className="h-4 w-4 mr-2" />
@@ -275,7 +349,7 @@ const TasksPage = () => {
                         Continue
                       </button>
                       <button
-                        onClick={() => completeTask(task.id)}
+                        onClick={() => task.candidateTaskId && updateTaskStatus(task.candidateTaskId, "done")}
                         className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition duration-200"
                       >
                         <CheckCircle className="h-4 w-4 mr-2" />
@@ -284,9 +358,7 @@ const TasksPage = () => {
                     </div>
                   ) : (
                     <button
-                      onClick={() =>
-                        updateTask(task.id, { status: "in-progress" })
-                      }
+                      onClick={() => task.candidateTaskId && updateTaskStatus(task.candidateTaskId, "in_progress")}
                       className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition duration-200"
                     >
                       <Plus className="h-4 w-4 mr-2" />

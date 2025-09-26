@@ -9,8 +9,8 @@ const LoginPage = () => {
   const { login, isLoading, error, isAuthenticated, clearError } =
     useAuthStore();
   const [showPassword, setShowPassword] = useState(false);
-  const [email, setEmail] = useState("candidate@example.com");
-  const [password, setPassword] = useState("password");
+  const [email, setEmail] = useState("admin@example.com");
+  const [password, setPassword] = useState("admin@123");
 
   useEffect(() => {
     if (isAuthenticated) {

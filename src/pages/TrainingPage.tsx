@@ -9,7 +9,6 @@ import {
   Brain,
   Shield,
   AlertTriangle,
-  Monitor,
   Heart,
   DollarSign,
   Users,
@@ -37,48 +36,45 @@ interface TrainingModule {
 const TrainingPage = () => {
   const [selectedCategory, setSelectedCategory] = useState("All Categories");
   const [searchTerm, setSearchTerm] = useState("");
-
-  // Training modules data
-  const trainingModules: TrainingModule[] = [
+  
+  // Hardcoded mock data for UI testing
+  const modules: TrainingModule[] = [
     {
       id: 1,
       name: "Company Orientation",
-      description:
-        "Learn about our company history, mission, values, and organizational structure",
+      description: "Learn about our company history, mission, values, and organizational structure",
       duration: "1 hr",
       category: "Onboarding",
       difficulty: "Beginner",
-      status: "not-started",
-      progress: 0,
+      status: "completed",
+      progress: 100,
       rating: 4.8,
       enrolledUsers: 1250,
       icon: Building,
       tags: ["Required", "New Hire"],
-      estimatedCompletion: "2024-09-10",
+      estimatedCompletion: "2024-09-10"
     },
     {
       id: 2,
       name: "Risk Assessment",
-      description:
-        "Understanding workplace risks and safety procedures for a secure work environment",
+      description: "Understanding workplace risks and safety procedures for a secure work environment",
       duration: "1 hr",
       category: "Onboarding",
       difficulty: "Beginner",
-      status: "not-started",
-      progress: 0,
+      status: "in-progress",
+      progress: 65,
       rating: 4.6,
       enrolledUsers: 980,
       icon: AlertTriangle,
       tags: ["Required", "Safety"],
-      estimatedCompletion: "2024-09-10",
+      estimatedCompletion: "2024-09-15"
     },
     {
       id: 3,
       name: "Cybersecurity Fundamentals",
-      description:
-        "Essential cybersecurity practices, threat awareness, and data protection protocols",
+      description: "Essential cybersecurity practices, threat awareness, and data protection protocols",
       duration: "2 hrs",
-      category: "Onboarding",
+      category: "Security",
       difficulty: "Intermediate",
       status: "not-started",
       progress: 0,
@@ -86,15 +82,14 @@ const TrainingPage = () => {
       enrolledUsers: 1100,
       icon: Shield,
       tags: ["Required", "Security"],
-      estimatedCompletion: "2024-09-12",
+      estimatedCompletion: "2024-09-20"
     },
     {
       id: 4,
       name: "Security Awareness",
-      description:
-        "Advanced security protocols and best practices for information protection",
+      description: "Advanced security protocols and best practices for information protection",
       duration: "1 hr",
-      category: "Onboarding",
+      category: "Security",
       difficulty: "Intermediate",
       status: "not-started",
       progress: 0,
@@ -102,105 +97,44 @@ const TrainingPage = () => {
       enrolledUsers: 850,
       icon: Shield,
       tags: ["Required", "Security"],
-      estimatedCompletion: "2024-09-12",
+      estimatedCompletion: "2024-09-20"
     },
     {
       id: 5,
-      name: "Product Overview",
-      description:
-        "Comprehensive overview of our products, services, and market positioning",
-      duration: "30 mins",
-      category: "Compliance",
+      name: "Health & Wellness",
+      description: "Employee wellness programs, mental health resources, and work-life balance",
+      duration: "45 min",
+      category: "Wellness",
       difficulty: "Beginner",
       status: "not-started",
       progress: 0,
       rating: 4.5,
-      enrolledUsers: 750,
-      icon: Monitor,
-      tags: ["Product", "Business"],
-      estimatedCompletion: "2024-09-15",
+      enrolledUsers: 720,
+      icon: Heart,
+      tags: ["Optional", "Wellness"],
+      estimatedCompletion: "2024-09-25"
     },
     {
       id: 6,
-      name: "Emergency Procedures",
-      description:
-        "Critical emergency response procedures and evacuation protocols",
-      duration: "1 hr 30 mins",
-      category: "Technical Skills",
+      name: "Financial Planning",
+      description: "Understanding benefits, retirement planning, and financial wellness resources",
+      duration: "1.5 hrs",
+      category: "Benefits",
       difficulty: "Intermediate",
       status: "not-started",
       progress: 0,
-      rating: 4.8,
+      rating: 4.4,
       enrolledUsers: 650,
-      icon: AlertTriangle,
-      tags: ["Safety", "Emergency"],
-      estimatedCompletion: "2024-09-18",
-    },
-    {
-      id: 7,
-      name: "Medical Records System",
-      description:
-        "Training on electronic health records system and patient data management",
-      duration: "1 hr",
-      category: "Technical Skills",
-      difficulty: "Advanced",
-      status: "not-started",
-      progress: 0,
-      rating: 4.6,
-      enrolledUsers: 450,
-      icon: Heart,
-      tags: ["Healthcare", "Systems"],
-      estimatedCompletion: "2024-09-20",
-    },
-    {
-      id: 8,
-      name: "Patient Care Standards",
-      description:
-        "Best practices for patient interaction, care quality, and service excellence",
-      duration: "2 hrs",
-      category: "Technical Skills",
-      difficulty: "Intermediate",
-      status: "not-started",
-      progress: 0,
-      rating: 4.9,
-      enrolledUsers: 550,
-      icon: Heart,
-      tags: ["Healthcare", "Patient Care"],
-      estimatedCompletion: "2024-09-22",
-    },
-    {
-      id: 9,
-      name: "Financial Compliance",
-      description:
-        "Financial regulations, compliance requirements, and reporting standards",
-      duration: "2 hrs",
-      category: "Soft Skills",
-      difficulty: "Advanced",
-      status: "not-started",
-      progress: 0,
-      rating: 4.7,
-      enrolledUsers: 380,
       icon: DollarSign,
-      tags: ["Finance", "Compliance"],
-      estimatedCompletion: "2024-09-25",
-    },
-    {
-      id: 10,
-      name: "Anti-Money Laundering",
-      description:
-        "AML policies, detection techniques, and regulatory compliance procedures",
-      duration: "1 hr 30 mins",
-      category: "Soft Skills",
-      difficulty: "Advanced",
-      status: "not-started",
-      progress: 0,
-      rating: 4.8,
-      enrolledUsers: 320,
-      icon: DollarSign,
-      tags: ["Finance", "Legal"],
-      estimatedCompletion: "2024-09-25",
-    },
+      tags: ["Optional", "Benefits"],
+      estimatedCompletion: "2024-09-30"
+    }
   ];
+
+  const updateModuleProgress = (moduleId: number, status: string, progress: number) => {
+    console.log(`Updating module ${moduleId} to status: ${status}, progress: ${progress}%`);
+  };
+
 
   const categories = [
     "All Categories",
@@ -227,7 +161,7 @@ const TrainingPage = () => {
   };
 
   // Filter modules
-  const filteredModules = trainingModules.filter((module) => {
+  const filteredModules = modules.filter((module) => {
     const matchesCategory =
       selectedCategory === "All Categories" ||
       module.category === selectedCategory;
@@ -239,13 +173,11 @@ const TrainingPage = () => {
 
   // Training statistics
   const trainingStats = {
-    total: trainingModules.length,
-    notStarted: trainingModules.filter((m) => m.status === "not-started")
-      .length,
-    inProgress: trainingModules.filter((m) => m.status === "in-progress")
-      .length,
-    completed: trainingModules.filter((m) => m.status === "completed").length,
-    totalHours: trainingModules.reduce((acc, module) => {
+    total: modules.length,
+    notStarted: modules.filter((m) => m.status === "not-started").length,
+    inProgress: modules.filter((m) => m.status === "in-progress").length,
+    completed: modules.filter((m) => m.status === "completed").length,
+    totalHours: modules.reduce((acc, module) => {
       const hours = parseFloat(module.duration.match(/[\d.]+/)![0]);
       return acc + hours;
     }, 0),
@@ -459,9 +391,19 @@ const TrainingPage = () => {
                 </div>
 
                 {/* Action Button */}
-                <button className="w-full bg-blue-600 text-white py-3 px-4 rounded-xl hover:bg-blue-700 transition duration-200 font-medium flex items-center justify-center group">
+                <button 
+                  onClick={() => {
+                    if (module.status === 'not-started') {
+                      updateModuleProgress(module.id, 'in_progress', 0);
+                    } else if (module.status === 'in-progress') {
+                      updateModuleProgress(module.id, 'completed', 100);
+                    }
+                  }}
+                  className="w-full bg-blue-600 text-white py-3 px-4 rounded-xl hover:bg-blue-700 transition duration-200 font-medium flex items-center justify-center group"
+                >
                   <Play className="h-4 w-4 mr-2 group-hover:scale-110 transition duration-200" />
-                  Start Module
+                  {module.status === 'not-started' ? 'Start Module' : 
+                   module.status === 'in-progress' ? 'Mark Complete' : 'Completed'}
                 </button>
               </div>
             );

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { 
   Home, 
   CheckSquare, 
@@ -10,7 +10,6 @@ import {
   RefreshCw,
   Eye,
   Download,
-  Trash2,
   User,
   Bell,
   CheckCircle,
@@ -19,7 +18,6 @@ import {
   AlertTriangle,
   Folder,
   Search,
-  Filter,
   Plus,
   Paperclip,
   Calendar
@@ -212,7 +210,7 @@ const DocumentsPage = () => {
   );
 
   // Get status badge
-  const getStatusBadge = (status) => {
+  const getStatusBadge = (status: string) => {
     switch (status) {
       case 'submitted':
         return (
@@ -265,7 +263,7 @@ const DocumentsPage = () => {
   };
 
   // Handle drag and drop
-  const handleDragOver = (e) => {
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     setIsDragOver(true);
   };
@@ -274,7 +272,7 @@ const DocumentsPage = () => {
     setIsDragOver(false);
   };
 
-  const handleDrop = (e) => {
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     setIsDragOver(false);
     // Handle file drop logic here

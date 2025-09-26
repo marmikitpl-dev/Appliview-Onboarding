@@ -1,6 +1,5 @@
 import React, { useState, useRef, useCallback } from "react";
 import Navigation from "../components/Navigation";
-import { useDocumentsStore } from "../stores";
 import toast from "react-hot-toast";
 import {
   Upload,
@@ -14,33 +13,91 @@ import {
 } from "lucide-react";
 
 const DocumentsPage = () => {
-  const {
-    documents,
-    categories,
-    uploadProgress,
-    searchQuery,
-    uploadDocument,
-    setSearchQuery,
-  } = useDocumentsStore();
+  // Hardcoded mock data for UI testing
+  const documents = [
+    {
+      id: 1,
+      name: "I9_Form_John_Smith.pdf",
+      category: "tax",
+      status: "approved",
+      uploadedAt: "2024-09-10T10:30:00Z",
+      size: 245760,
+      type: "application/pdf",
+      description: "Employment eligibility verification form",
+      isRequired: true,
+      tags: ["Required", "Tax"]
+    },
+    {
+      id: 2,
+      name: "W4_Tax_Form.pdf", 
+      category: "tax",
+      status: "pending",
+      uploadedAt: "2024-09-12T14:20:00Z",
+      size: 189440,
+      type: "application/pdf",
+      description: "Tax withholding certificate",
+      isRequired: true,
+      tags: ["Required", "Tax"]
+    },
+    {
+      id: 3,
+      name: "Emergency_Contact_Form.pdf",
+      category: "hr",
+      status: "rejected",
+      uploadedAt: "2024-09-08T09:15:00Z",
+      size: 156672,
+      type: "application/pdf",
+      description: "Emergency contact information",
+      isRequired: true,
+      tags: ["Required", "HR"]
+    }
+  ];
 
+  const categories = [
+    { id: "tax", name: "Tax Documents", slug: "tax", count: 2 },
+    { id: "hr", name: "HR Forms", slug: "hr", count: 1 },
+    { id: "legal", name: "Legal Documents", slug: "legal", count: 0 },
+    { id: "benefits", name: "Benefits", slug: "benefits", count: 0 }
+  ];
+
+  const templates = [
+    {
+      id: 1,
+      name: "I-9 Employment Eligibility Verification",
+      category: "tax",
+      description: "Required form to verify employment eligibility",
+      required: true
+    },
+    {
+      id: 2,
+      name: "W-4 Employee's Withholding Certificate",
+      category: "tax", 
+      description: "Tax withholding information form",
+      required: true
+    },
+    {
+      id: 3,
+      name: "Emergency Contact Information",
+      category: "hr",
+      description: "Emergency contact details form",
+      required: true
+    }
+  ];
+
+  const uploadProgress = 0;
+  const [searchQuery, setSearchQuery] = useState("");
   const [isDragOver, setIsDragOver] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState("all");
+  const [selectedTemplate, setSelectedTemplate] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const uploadDocument = async (file: File, templateId?: number) => {
+    console.log("Mock upload:", file.name, templateId);
+    toast.success("Document uploaded successfully!");
+  };
+
   // Calculate overall upload progress
-  const overallUploadProgress = React.useMemo(() => {
-    const progressValues = Object.values(uploadProgress).filter(
-      (progress): progress is number => progress !== undefined
-    );
-
-    if (progressValues.length === 0) return 0;
-
-    const totalProgress = progressValues.reduce(
-      (sum, progress) => sum + progress,
-      0
-    );
-    return Math.round(totalProgress / progressValues.length);
-  }, [uploadProgress]);
+  const overallUploadProgress = uploadProgress;
 
   // File validation
   const validateFile = useCallback((file: File): string | null => {
@@ -67,6 +124,11 @@ const DocumentsPage = () => {
   // Handle file upload
   const handleFileUpload = useCallback(
     async (files: FileList) => {
+      if (!selectedTemplate) {
+        toast.error('Please select a document template first');
+        return;
+      }
+
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
         const error = validateFile(file);
@@ -77,21 +139,14 @@ const DocumentsPage = () => {
         }
 
         try {
-          await uploadDocument(file, {
-            category:
-              selectedCategory === "all"
-                ? "reference"
-                : (selectedCategory as any),
-            description: `Uploaded document: ${file.name}`,
-            tags: ["uploaded"],
-          });
+          await uploadDocument(file, selectedTemplate || undefined);
           toast.success(`${file.name} uploaded successfully!`);
         } catch (error) {
           toast.error(`Failed to upload ${file.name}`);
         }
       }
     },
-    [uploadDocument, validateFile, selectedCategory]
+    [uploadDocument, validateFile, selectedTemplate]
   );
 
   // Enhanced categories with counts
@@ -225,23 +280,43 @@ const DocumentsPage = () => {
               </div>
 
               <div className="p-4">
+                {/* Template Selection */}
+                <div className="mb-4">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Select Document Template
+                  </label>
+                  <select
+                    value={selectedTemplate || ''}
+                    onChange={(e) => setSelectedTemplate(e.target.value ? Number(e.target.value) : null)}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  >
+                    <option value="">Choose a template...</option>
+                    {templates.map((template) => (
+                      <option key={template.id} value={template.id}>
+                        {template.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
                 <div
                   className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors ${
                     isDragOver
                       ? "border-blue-400 bg-blue-50"
                       : "border-gray-300 hover:border-gray-400"
-                  }`}
+                  } ${!selectedTemplate ? 'opacity-50 cursor-not-allowed' : ''}`}
                   onDragOver={handleDragOver}
                   onDragLeave={handleDragLeave}
                   onDrop={handleDrop}
                 >
                   <Upload className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                   <p className="text-sm text-gray-600 mb-2">
-                    Drag and drop files here, or
+                    {selectedTemplate ? 'Drag and drop files here, or' : 'Select a template first'}
                   </p>
                   <button
                     onClick={handleChooseFiles}
-                    className="text-blue-600 hover:text-blue-700 font-medium text-sm"
+                    disabled={!selectedTemplate}
+                    className="text-blue-600 hover:text-blue-700 font-medium text-sm disabled:text-gray-400 disabled:cursor-not-allowed"
                   >
                     choose files
                   </button>

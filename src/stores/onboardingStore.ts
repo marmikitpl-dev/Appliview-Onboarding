@@ -1,6 +1,8 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+import { apiService, OnboardingTask, CandidateTask } from '../services/api';
 
+// Frontend Task interface that combines template and candidate task data
 export interface Task {
   id: string;
   title: string;
@@ -14,6 +16,8 @@ export interface Task {
   completedAt?: string;
   createdAt: string;
   updatedAt: string;
+  templateId?: number;
+  candidateTaskId?: number;
 }
 
 export interface OnboardingProgress {
@@ -26,6 +30,8 @@ export interface OnboardingProgress {
 
 interface OnboardingState {
   tasks: Task[];
+  taskTemplates: OnboardingTask[];
+  candidateTasks: CandidateTask[];
   progress: OnboardingProgress;
   isLoading: boolean;
   error: string | null;
@@ -43,6 +49,7 @@ interface OnboardingActions {
   updateTask: (id: string, updates: Partial<Task>) => void;
   deleteTask: (id: string) => void;
   completeTask: (id: string) => void;
+  updateTaskStatus: (candidateTaskId: number, status: 'pending' | 'in_progress' | 'done') => Promise<void>;
   
   // Filtering and search
   setFilters: (filters: Partial<OnboardingState['filters']>) => void;
@@ -54,6 +61,8 @@ interface OnboardingActions {
   
   // Data loading
   loadTasks: () => Promise<void>;
+  loadTaskTemplates: () => Promise<void>;
+  loadCandidateTasks: () => Promise<void>;
   clearError: () => void;
 }
 
@@ -124,6 +133,29 @@ const initialTasks: Task[] = [
   }
 ];
 
+// Helper function to convert backend data to frontend format
+const convertToFrontendTask = (template: OnboardingTask, candidateTask?: CandidateTask): Task => {
+  const status = candidateTask?.status === 'done' ? 'completed' : 
+                 candidateTask?.status === 'in_progress' ? 'in-progress' : 'pending';
+  
+  return {
+    id: candidateTask ? candidateTask.id.toString() : `template-${template.id}`,
+    title: template.title,
+    description: template.description || '',
+    category: 'other', // Default category, could be mapped from assignee_role
+    status,
+    priority: 'medium', // Default priority, could be calculated from due_days_from_start
+    dueDate: candidateTask?.due_date || undefined,
+    assignedTo: template.assignee_role,
+    estimatedHours: undefined,
+    completedAt: candidateTask?.completed_at || undefined,
+    createdAt: candidateTask?.created_at || new Date().toISOString(),
+    updatedAt: candidateTask?.created_at || new Date().toISOString(),
+    templateId: template.id,
+    candidateTaskId: candidateTask?.id
+  };
+};
+
 const calculateProgress = (tasks: Task[]): OnboardingProgress => {
   const totalTasks = tasks.length;
   const completedTasks = tasks.filter(task => task.status === 'completed').length;
@@ -148,8 +180,10 @@ export const useOnboardingStore = create<OnboardingStore>()(
   persist(
     (set, get) => ({
       // Initial state
-      tasks: initialTasks,
-      progress: calculateProgress(initialTasks),
+      tasks: [],
+      taskTemplates: [],
+      candidateTasks: [],
+      progress: { totalTasks: 0, completedTasks: 0, inProgressTasks: 0, overdueTasks: 0, completionPercentage: 0 },
       isLoading: false,
       error: null,
       filters: {
@@ -208,6 +242,18 @@ export const useOnboardingStore = create<OnboardingStore>()(
         });
       },
 
+      updateTaskStatus: async (candidateTaskId, status) => {
+        try {
+          await apiService.updateTaskStatus(candidateTaskId, status);
+          // Refresh candidate tasks
+          await get().loadCandidateTasks();
+          await get().loadTasks();
+        } catch (error: any) {
+          const errorMessage = error.response?.data?.detail || 'Failed to update task status';
+          set({ error: errorMessage });
+        }
+      },
+
       setFilters: (newFilters) => {
         set(state => ({
           filters: { ...state.filters, ...newFilters }
@@ -239,16 +285,40 @@ export const useOnboardingStore = create<OnboardingStore>()(
         set({ isLoading: true, error: null });
         
         try {
-          // Simulate API call
-          await new Promise(resolve => setTimeout(resolve, 500));
+          const { taskTemplates, candidateTasks } = get();
           
-          // In a real app, you would fetch tasks from an API here
-          set({ isLoading: false });
+          // Convert templates and candidate tasks to frontend tasks
+          const tasks: Task[] = taskTemplates.map(template => {
+            const candidateTask = candidateTasks.find(ct => ct.task_id === template.id);
+            return convertToFrontendTask(template, candidateTask);
+          });
+          
+          set({ tasks, progress: calculateProgress(tasks), isLoading: false });
         } catch (error) {
           set({
             error: 'Failed to load tasks',
             isLoading: false
           });
+        }
+      },
+
+      loadTaskTemplates: async () => {
+        try {
+          const templates = await apiService.getTaskTemplates();
+          set({ taskTemplates: templates });
+        } catch (error: any) {
+          const errorMessage = error.response?.data?.detail || 'Failed to load task templates';
+          set({ error: errorMessage });
+        }
+      },
+
+      loadCandidateTasks: async () => {
+        try {
+          const candidateTasks = await apiService.getMyTasks();
+          set({ candidateTasks });
+        } catch (error: any) {
+          const errorMessage = error.response?.data?.detail || 'Failed to load candidate tasks';
+          set({ error: errorMessage });
         }
       },
 
@@ -260,6 +330,8 @@ export const useOnboardingStore = create<OnboardingStore>()(
       name: 'onboarding-storage',
       partialize: (state) => ({
         tasks: state.tasks,
+        taskTemplates: state.taskTemplates,
+        candidateTasks: state.candidateTasks,
         progress: state.progress
       })
     }
